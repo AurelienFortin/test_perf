@@ -6,6 +6,7 @@ library(future)
 library(furrr)
 library(progressr)
 library(parallel)
+library(osrm)
 
 centroides_population <- readRDS("centroides.rds")
 
@@ -18,23 +19,25 @@ calculer_isochrone <- function(i, centroides_population, duree) {
     return(NULL)
   })
 }
-
 # Fonction pour lancer les calculs pour tous les IRIS
-calculer_tous_les_isochrones <- function(centroides_population, duree) {
+calculer_tous_les_isochrones <- function(centroides_population, duree, departement) {
   plan(multisession, workers = parallel::detectCores() - 1)  # Parallélisation
   handlers(global = TRUE)  # Barre de progression
   
+  iris_a_traiter <- centroides_population[centroides_population$DPT == departement,]
+  
   with_progress({
-    p <- progressor(steps = nrow(centroides_population))  # Initialiser la barre
+    p <- progressor(steps = nrow(iris_a_traiter))  # Initialiser la barre
     
     # Calcul parallèle des isochrones
-    isochrones <- future_map(1:nrow(centroides_population), function(i) {
+    isochrones <- future_map(1:nrow(iris_a_traiter), function(i) {
       p()  # Incrémenter la barre
-      calculer_isochrone(i, centroides_population, duree)
+      calculer_isochrone(i, iris_a_traiter, duree)
     })
   })
   
   return(isochrones)
 }
 
-isochrones <- calculer_tous_les_isochrones(centroides_population, duree = 30)
+isochrones_01 <- calculer_tous_les_isochrones(centroides_population, duree = 30, departement = "01")
+saveRDS(isochrones_01, "isochrones/isochrones_01.rds")
